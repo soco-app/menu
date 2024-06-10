@@ -24,14 +24,19 @@ class MenuView(private val mContext: ReactContext): ReactViewGroup(mContext) {
   private var mIsMenuDisplayed = false
   private var mIsOnLongPress = false
   private var mGestureDetector: GestureDetector
+  private var pressStartTime: Long = 0
+  private val LONG_PRESS_DURATION = 500 // 500 milliseconds
+  private var mDownX: Float = 0f
+  private var mDownY: Float = 0f
+  private var mSwiping = false
+  private val mSlop = ViewConfiguration.get(context).scaledTouchSlop
 
   init {
     mGestureDetector = GestureDetector(mContext, object : GestureDetector.SimpleOnGestureListener() {
       override fun onLongPress(e: MotionEvent) {
-        if (!mIsOnLongPress) {
-          return
+        if (!mIsOnLongPress && !mSwiping) {
+          prepareMenu()
         }
-        prepareMenu()
       }
 
       override fun onSingleTapUp(e: MotionEvent): Boolean {
@@ -48,7 +53,38 @@ class MenuView(private val mContext: ReactContext): ReactViewGroup(mContext) {
   }
 
   override fun onTouchEvent(ev: MotionEvent): Boolean {
-    mGestureDetector.onTouchEvent(ev)
+    when (ev.action) {
+      MotionEvent.ACTION_DOWN -> {
+        pressStartTime = System.currentTimeMillis()
+        mDownX = ev.x
+        mDownY = ev.y
+        mSwiping = false
+      }
+      MotionEvent.ACTION_MOVE -> {
+        val x = ev.x
+        val y = ev.y
+        val xDelta = Math.abs(x - mDownX)
+        val yDelta = Math.abs(y - mDownY)
+
+        if (yDelta > mSlop && yDelta / 2 > xDelta) {
+          mSwiping = true
+        }
+      }
+      MotionEvent.ACTION_UP -> {
+        val pressDuration = System.currentTimeMillis() - pressStartTime
+        if (pressDuration >= LONG_PRESS_DURATION && !mSwiping) {
+          prepareMenu()
+        }
+      }
+      MotionEvent.ACTION_CANCEL -> {
+        pressStartTime = 0
+        mSwiping = false
+      }
+    }
+    return mGestureDetector.onTouchEvent(ev)
+  }
+
+  override fun onInterceptTouchEvent(ev: MotionEvent?): Boolean {
     return true
   }
 
