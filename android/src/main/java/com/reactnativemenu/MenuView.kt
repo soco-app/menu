@@ -48,10 +48,6 @@ class MenuView(private val mContext: ReactContext): ReactViewGroup(mContext) {
     })
   }
 
-  override fun onInterceptTouchEvent(ev: MotionEvent?): Boolean {
-    return true
-  }
-
   override fun onTouchEvent(ev: MotionEvent): Boolean {
     when (ev.action) {
       MotionEvent.ACTION_DOWN -> {
