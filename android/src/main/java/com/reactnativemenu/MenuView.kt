@@ -15,6 +15,7 @@ import com.facebook.react.uimanager.events.Event
 import com.facebook.react.uimanager.events.RCTEventEmitter
 import com.facebook.react.views.view.ReactViewGroup
 import java.lang.reflect.Field
+import android.util.Log
 
 
 class MenuView(private val mContext: ReactContext): ReactViewGroup(mContext) {
@@ -35,17 +36,24 @@ class MenuView(private val mContext: ReactContext): ReactViewGroup(mContext) {
     mGestureDetector = GestureDetector(mContext, object : GestureDetector.SimpleOnGestureListener() {
       override fun onLongPress(e: MotionEvent) {
         if (!mIsOnLongPress && !mSwiping) {
+          logToJS("onLongPress: prepareMenu() called")
           prepareMenu()
         }
       }
 
       override fun onSingleTapUp(e: MotionEvent): Boolean {
         if (!mIsOnLongPress) {
+          logToJS("onSingleTapUp: prepareMenu() called")
           prepareMenu()
         }
         return true
       }
     })
+  }
+
+  private fun logToJS(message: String) {
+    mContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+        .emit("nativeLog", message)
   }
 
   override fun onTouchEvent(ev: MotionEvent): Boolean {
@@ -55,26 +63,32 @@ class MenuView(private val mContext: ReactContext): ReactViewGroup(mContext) {
         mDownX = ev.x
         mDownY = ev.y
         mSwiping = false
+        logToJS("ACTION_DOWN: pressStartTime=$pressStartTime, mDownX=$mDownX, mDownY=$mDownY")
       }
       MotionEvent.ACTION_MOVE -> {
         val x = ev.x
         val y = ev.y
         val xDelta = Math.abs(x - mDownX)
         val yDelta = Math.abs(y - mDownY)
+        logToJS("ACTION_MOVE: x=$x, y=$y, xDelta=$xDelta, yDelta=$yDelta")
 
         if (yDelta > mSlop && yDelta / 2 > xDelta) {
           mSwiping = true
+          logToJS("ACTION_MOVE: Swiping detected")
         }
       }
       MotionEvent.ACTION_UP -> {
         val pressDuration = System.currentTimeMillis() - pressStartTime
+        logToJS("ACTION_UP: pressDuration=$pressDuration, mSwiping=$mSwiping")
         if (pressDuration >= LONG_PRESS_DURATION && !mSwiping) {
+          logToJS("ACTION_UP: prepareMenu() called")
           prepareMenu()
         }
       }
       MotionEvent.ACTION_CANCEL -> {
         pressStartTime = 0
         mSwiping = false
+        logToJS("ACTION_CANCEL: Resetting state")
       }
     }
     return mGestureDetector.onTouchEvent(ev)
