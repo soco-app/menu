@@ -15,7 +15,10 @@ import com.facebook.react.uimanager.events.Event
 import com.facebook.react.uimanager.events.RCTEventEmitter
 import com.facebook.react.views.view.ReactViewGroup
 import java.lang.reflect.Field
-
+import com.facebook.react.modules.core.DeviceEventManagerModule
+import android.util.Log
+import android.os.Handler
+import android.os.Looper
 
 class MenuView(private val mContext: ReactContext): ReactViewGroup(mContext) {
   private lateinit var mActions: ReadableArray
@@ -25,24 +28,25 @@ class MenuView(private val mContext: ReactContext): ReactViewGroup(mContext) {
   private var mIsOnLongPress = false
   private var mGestureDetector: GestureDetector
   private var pressStartTime: Long = 0
-  private val LONG_PRESS_DURATION = 500 // 500 milliseconds
+  private val LONG_PRESS_DURATION = 500
   private var mDownX: Float = 0f
   private var mDownY: Float = 0f
   private var mSwiping = false
   private val mSlop = ViewConfiguration.get(context).scaledTouchSlop
+  private val longClickDuration: Long = 1000
+  private var isLongPress = false
+  private var velocity: Double = 0.0
 
   init {
     mGestureDetector = GestureDetector(mContext, object : GestureDetector.SimpleOnGestureListener() {
       override fun onLongPress(e: MotionEvent) {
-        if (!mIsOnLongPress && !mSwiping) {
-          logToJS("onLongPress: prepareMenu() called")
-          prepareMenu()
+        if (!mIsOnLongPress) {
+          return
         }
       }
 
       override fun onSingleTapUp(e: MotionEvent): Boolean {
         if (!mIsOnLongPress) {
-          logToJS("onSingleTapUp: prepareMenu() called")
           prepareMenu()
         }
         return true
@@ -50,52 +54,28 @@ class MenuView(private val mContext: ReactContext): ReactViewGroup(mContext) {
     })
   }
 
-  private fun logToJS(message: String) {
-    mContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-        .emit("nativeLog", message)
+  override fun onInterceptTouchEvent(ev: MotionEvent?): Boolean {
+    return true
   }
 
   override fun onTouchEvent(ev: MotionEvent): Boolean {
     when (ev.action) {
-      MotionEvent.ACTION_DOWN -> {
-        pressStartTime = System.currentTimeMillis()
-        mDownX = ev.x
-        mDownY = ev.y
-        mSwiping = false
-        logToJS("ACTION_DOWN: pressStartTime=$pressStartTime, mDownX=$mDownX, mDownY=$mDownY")
-      }
-      MotionEvent.ACTION_MOVE -> {
-        val x = ev.x
-        val y = ev.y
-        val xDelta = Math.abs(x - mDownX)
-        val yDelta = Math.abs(y - mDownY)
-        logToJS("ACTION_MOVE: x=$x, y=$y, xDelta=$xDelta, yDelta=$yDelta")
-
-        if (yDelta > mSlop && yDelta / 2 > xDelta) {
-          mSwiping = true
-          logToJS("ACTION_MOVE: Swiping detected")
+        MotionEvent.ACTION_DOWN -> {
+            isLongPress = true
+            val handler = Handler(Looper.getMainLooper())
+            handler.postDelayed({
+                if (isLongPress) {
+                    prepareMenu()
+                }
+            }, longClickDuration)
         }
-      }
-      MotionEvent.ACTION_UP -> {
-        val pressDuration = System.currentTimeMillis() - pressStartTime
-        logToJS("ACTION_UP: pressDuration=$pressDuration, mSwiping=$mSwiping")
-        if (pressDuration >= LONG_PRESS_DURATION && !mSwiping) {
-          logToJS("ACTION_UP: prepareMenu() called")
-          prepareMenu()
+        MotionEvent.ACTION_UP -> {
+            isLongPress = false
         }
-      }
-      MotionEvent.ACTION_CANCEL -> {
-        pressStartTime = 0
-        mSwiping = false
-        logToJS("ACTION_CANCEL: Resetting state")
-      }
     }
-    return mGestureDetector.onTouchEvent(ev)
-  }
-
-  override fun onInterceptTouchEvent(ev: MotionEvent?): Boolean {
     return true
-  }
+}
+
 
   override fun onDetachedFromWindow() {
     super.onDetachedFromWindow()
@@ -310,3 +290,4 @@ class MenuView(private val mContext: ReactContext): ReactViewGroup(mContext) {
     return textWithColor
   }
 }
+
