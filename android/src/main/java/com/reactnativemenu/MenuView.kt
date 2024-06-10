@@ -15,7 +15,6 @@ import com.facebook.react.uimanager.events.Event
 import com.facebook.react.uimanager.events.RCTEventEmitter
 import com.facebook.react.views.view.ReactViewGroup
 import java.lang.reflect.Field
-import android.util.Log
 
 
 class MenuView(private val mContext: ReactContext): ReactViewGroup(mContext) {
